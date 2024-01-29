@@ -1,0 +1,314 @@
+---
+title: "Final Project"
+author: "Madhur Thakur"
+format:
+  html:
+    df-print: paged
+    embed-resources: true
+editor: visual
+---
+
+## A) Data import
+
+```{r}
+#| label: setup
+#| message: false
+library(readr)
+library(tidyverse)
+library(lubridate)
+```
+
+Import files
+
+```{r}
+#| echo: true
+#| results: hide
+#| message: false
+departments <- read_csv("departments.csv", 
+                        na = "NULL")
+disease_types <- read_csv("disease_types.csv", 
+                          na = "NULL")
+diseases <- read_csv("diseases.csv", na = "NULL")
+encounters <- read_csv('encounters.csv', na = 'NULL')    
+medication_types <- read_csv('medication_types.csv', na = 'NULL')
+medications = read_csv('medications.csv', na = 'NULL')
+patients <- read_csv('patients.csv', na = 'NULL')
+providers <- read_csv('providers.csv', na = 'NULL')
+```
+
+## B) Data summary
+
+### 1. Counts:
+
+a.  How many patients are in the data set?
+
+```{r}
+nrow(patients)
+```
+
+b.  How many encounters?
+
+```{r}
+nrow(encounters)
+```
+
+c.  How many medication types (that is, different potential medications)?
+
+```{r}
+nrow(medication_types)
+```
+
+d.  How many medications (that is, specific meds given to specific patients)?
+
+```{r}
+nrow(medications)
+```
+
+e.  How many disease types (that is, different potential diseases)?
+
+```{r}
+nrow(disease_types)
+```
+
+f.  How many diseases (that is, specific diseases of specific patients)?
+
+```{r}
+nrow(diseases)
+```
+
+g.  How many departments?
+
+```{r}
+nrow(departments)
+```
+
+h.  How many providers?
+
+```{r}
+nrow(providers)
+```
+
+A table listing the number of patients stratified by: sex/gender, race/ethnicity, and marital status, simultaneously.
+
+```{r}
+patient_count <- patients |> 
+  count(gender, race, marital_status)
+patient_count
+```
+
+### 2. Within the set of encounters ten most common:
+
+a.  Medications (i.e., the most common medications prescribed to patients)?
+
+```{r}
+medication_10 <- medications |> 
+  count(medication_id) |> 
+  arrange(desc(n)) |> 
+  head(10) |> 
+  inner_join(medication_types, by = 'medication_id') |> 
+  select(medication_id, medication_name, n)
+medication_10
+```
+
+b.  Diseases (i.e., the most common diseases diagnosed for patients)?
+
+```{r}
+disease_10 <- diseases |> 
+  count(disease_id) |> 
+  arrange(desc(n)) |> 
+  head(10) |> 
+  inner_join(disease_types, by = 'disease_id')
+disease_10
+```
+
+c.  Departments?
+
+```{r}
+department_10 <- encounters |> 
+  count(department_id) |> 
+  arrange(desc(n)) |> 
+  head(10) |> 
+  inner_join(departments, by = 'department_id')
+department_10
+```
+
+d.  Providers?
+
+```{r}
+provider_10 <- encounters |> 
+  count(provider_id) |> 
+  arrange(desc(n)) |> 
+  head(10) |> 
+  inner_join(providers, by = 'provider_id') |> 
+  select( provider_id, n,first_name, middle_initial, last_name,gender)
+provider_10
+```
+
+### C) Data manipulation
+
+1.  Using the height and weight data that are available, calculate BMIs and report their means in three ways: by sex/gender; by race/ethnicity; and by sex/gender and race/ethnicity simultaneously (i.e., three different tables).
+
+```{r}
+encounters_bmi <- encounters |> 
+  filter(!is.na(height), !is.na(weight)) |> 
+  mutate(weight_kg = weight * 0.45359237,
+         height_m = height * 0.0254) |> 
+  filter(height_m >= 1 & height_m <= 2.5,
+         weight_kg >= 30 & weight_kg <= 200) |> 
+  mutate(bmi = weight_kg / height_m^2) |> 
+  inner_join(patients, by = 'patient_id')
+```
+
+Mean by gender
+
+```{r}
+encounters_bmi |> 
+  group_by(gender) |> 
+  summarise(mean(bmi))
+```
+
+```{r}
+encounters_bmi |> 
+  group_by(race) |> 
+  summarise(mean(bmi))
+```
+
+```{r}
+encounters_bmi |> 
+  group_by(gender, race) |> 
+  summarise(mean(bmi))
+```
+
+Filter out any encounters that have a stay of one day or less (i.e., keep encounters with LOSes longer than one day), and report the mean LOSes for the remainder in four ways: overall; by sex/gender; by department; and by sex/gender and department simultaneously.
+
+```{r}
+encounters_los <- encounters |> 
+  filter(!is.na(admit_date), !is.na(discharge_date)) |> 
+  mutate(los2=discharge_date-admit_date) |> 
+  mutate(los3 = as.numeric(los2)) |> 
+  filter(los3 > 1)
+
+encounters_los_mean <- encounters_los |> 
+  inner_join(departments, by = 'department_id') |> 
+  inner_join(patients, by = 'patient_id') |> 
+  select(gender, race, department_name, los3)
+```
+
+```{r}
+mean(encounters_los_mean$los3)
+encounters_los_mean |> 
+  group_by(gender) |> 
+  summarise(mean(los3))
+```
+
+#### By gender
+
+```{r}
+encounters_los_mean |> 
+  group_by(gender) |> 
+  summarise(mean(los3))
+```
+
+by department
+
+```{r}
+encounters_los_mean |> 
+  group_by(department_name) |> 
+  summarise(mean(los3))
+```
+
+by gender and department
+
+```{r}
+encounters_los_mean |> 
+  group_by(gender, department_name) |> 
+  summarise(mean(los3))
+```
+
+## D) Data visualization
+
+### 1. A histogram of patient age in years at time of encounter.
+
+```{r}
+ggplot(encounters, aes(x = age)) + 
+  geom_histogram(fill = 'steelblue') +
+  labs(x = 'age', y = 'count of patients') + 
+  scale_y_continuous(labels = scales::comma_format())
+```
+
+### 2. A histogram of number of encounters
+
+```{r}
+patient_enc <- encounters |> 
+  select(encounter_id, patient_id) |> 
+  group_by(patient_id) |> 
+  summarise(num_encounters = n()) 
+
+ggplot(patient_enc, aes(x = num_encounters)) +
+  geom_histogram(bins = 100)+
+  scale_y_continuous(labels = scales::comma_format())
+```
+
+### 3. A scatterplot of BMIs by age, giving different colors to different sexes/genders.
+
+```{r}
+encounters_bmi |> 
+  ggplot(aes(x = age, y = bmi, color = gender))+
+  geom_point()
+```
+
+### A set of panels (facets) of scatterplots of BMI by age, with different plots for each combination of sex/gender and race/ethnicity.
+
+```{r, fig.width=12, fig.height=10}
+ggplot(encounters_bmi, aes(x = age, y = bmi)) + 
+  geom_point(aes(color = gender)) +
+  facet_grid(gender~race) 
+```
+
+## E) Missing values.
+
+Some variables may have missing data. What are the approximate rates of missing data? Would any of these have an impact on data analysis? You may keep this discussion mostly qualitative.
+
+```{r}
+colMeans(is.na(encounters))
+```
+
+```{r}
+range(encounters$bp_systolic, na.rm = TRUE)
+range(encounters$age, na.rm = TRUE)
+range(encounters$temperature, na.rm = TRUE)
+range(encounters$weight, na.rm = TRUE)
+range(encounters$height, na.rm = TRUE)
+range(encounters$pulse, na.rm = TRUE)
+```
+
+## PART 2
+
+### 1. Latest BMI
+
+```{r}
+latest_bmi <- encounters |> 
+  filter(!is.na(height), !is.na(weight)) |> 
+  arrange(admit_date) |> 
+  tail(1000) |> 
+  mutate(weight_kg = weight * 0.45359237,
+         height_m = height * 0.0254) |> 
+  filter(height_m >= 1 & height_m <= 2.5,
+         weight_kg >= 30 & weight_kg <= 200) |> 
+  mutate(bmi = weight_kg / height_m^2) |> 
+  inner_join(patients, by = 'patient_id')
+
+summary(latest_bmi$bmi)
+
+latest_bmi |> 
+  group_by(gender) |> 
+  summarise(mean(bmi))
+
+latest_bmi |> 
+  group_by(race) |> 
+  summarise(mean(bmi))
+
+latest_bmi |> 
+  group_by(gender, race) |> 
+  summarise(mean(bmi))
+```
