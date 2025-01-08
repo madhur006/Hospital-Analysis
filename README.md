@@ -23,8 +23,8 @@ While the data files themselves are not included, they typically consist of the 
 * README.md: This file, which provides an overview of the repository and project.
 
 # Project Breakdown 
-1. Data Import: Import the CSV files and handle missing data encoded as "NULL". Ensure correct date/time formats.
-2. Data Summary: Summarize key data points, including patient counts, medication types, disease types, and more. You’ll generate a table stratifying patients by sex/gender, race/ethnicity, and marital status.
+1. Data Import
+2. Data Summary: Summarize key data points, including patient counts, medication types, disease types, and more. 
 3. Data Manipulation: Calculate BMI, perform LOS (length of stay) analysis, and handle missing or skewed data.
 4. Data Visualization: Create histograms, scatterplots, and facet plots to visualize patient demographics, encounters, and BMIs.
 5. Missing Values: Analyze the rate of missing data and its potential impact on analysis.
